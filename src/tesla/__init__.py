@@ -77,14 +77,17 @@ class Notifier:
         Parse the provided results and alert on new vehicles not found in the cache.
         """
         try:
-            for vehicle in results['results']:
-                if not self.is_cached(vehicle):
-                    self.process_vehicle(vehicle)
+            if int(results['total_matches_found']) > 0:
+                for vehicle in results['results']:
+                    if not self.is_cached(vehicle):
+                        self.process_vehicle(vehicle)
 
-            self.dispatch()
+                self.dispatch()
+
             self.update_cache(results)
         except Exception as e:
-            logging.error(f"Error: {type(e)}: {e}\n" + traceback.format_exc())
+            logging.error(f"Error '{type(e)}' parsing results\n" + traceback.format_exc())
+            self.update_cache(results, error_log=True)
             self.clean_cache()
 
     def process_vehicle(self, v: dict):
@@ -93,7 +96,6 @@ class Notifier:
 
         These are stored, not dispatched. When all vehicles are processed, dispatch the messages in one with dispatch().
         """
-
         title = f"{v['Year']} {v['TrimName']}"
         if v['IsDemo']:
             title += " (demo)"
@@ -135,12 +137,20 @@ class Notifier:
 
         return False
 
-    def update_cache(self, results: dict):
+    def update_cache(self, results: dict, error_log: bool = False):
         """
         Writes the latest (provided) results to the cache file.
         """
-        with open(self.cache_file, "w") as fp:
+        error_fn = self.cache_file + ".err"
+
+        with open(error_fn if error_log else self.cache_file, "w") as fp:
             fp.write(json.dumps(results))
+
+        if not error_log and os.path.isfile(error_fn):
+            try:
+                os.unlink(error_fn)
+            except Exception as e:
+                logging.error(f"Error '{type(e)}' removing previous error result dump\n" + traceback.format_exc())
 
     def clean_cache(self):
         """
