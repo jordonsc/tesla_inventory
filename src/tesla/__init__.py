@@ -131,6 +131,9 @@ class Notifier:
         """
         Check if a vehicle is present in the cached data.
         """
+        if int(self.cache['total_matches_found']) == 0:
+            return False
+
         for vehicle in self.cache['results']:
             if vehicle[self.MATCH_ON] == v[self.MATCH_ON]:
                 return True
